@@ -1,0 +1,3 @@
+shell.run("LuaGraphs.lua")
+os.loadAPI("Olive")
+shell.run("GraphGPS.lua")
