@@ -1,8 +1,20 @@
 --GraphGPS, geolocation and pathfinding program for Minecraftian topography
 --Made by Mario Bizcocho González for Discrete Mathematics
---(C) Mar&Mar Hisperia 2017. All rights reserved.
+
+--[[This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
+	To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.]]--
 
 tx,ty=term.getSize()
+modem=peripheral.wrap("back")
+
+function math.round(n)
+	if n-math.floor(n)>=0.5 then
+		return math.ceil(n)
+	else
+		return math.floor(n)
+	end
+end
+
 
 -- DECLARE MINEVILLE CITY GRAPH VERTEX
 
@@ -49,7 +61,7 @@ mineville:addVertex(Vertex.new("Calle Innovacion-Calle Fraternidad", {-372, 359}
 mineville:addVertex(Vertex.new("Avda. del Pueblo-Torre Mar&Mar", {-368, 397},41))
 mineville:addVertex(Vertex.new("Avda. de la Democracia-TGPF", {-432, 434},42))
 mineville:addVertex(Vertex.new("Calle Castilla", {-483, 440},43))
-mineville:addVertex(Vertex.new("Avda. Constitucion-Avda. del Pueblo", {-372, 374},43))
+mineville:addVertex(Vertex.new("Avda. Constitucion-Avda. del Pueblo", {-372, 374},44))
 mineville:addVertex(Vertex.new("Avda. del Pueblo-CC. David Tennant", {-368, 434},45))
 mineville:addVertex(Vertex.new("Avda. del Pueblo-Calle del Elíseo", {-368, 447},46))
 mineville:addVertex(Vertex.new("Calle del Elíseo-Calle Valladolid", {-322, 447},47))
@@ -141,6 +153,11 @@ mineville:joinVertsDistAndMult(12,19,1.5)
 mineville:joinVertsDistAndMult(12,7,2)
 mineville:joinVertsDistAndMult(14,11,2)
 
+destinos={
+{"Monzuela", 51},
+{"Turtle",42},
+{"Home",53}
+}
 
 -- DRAWING FUNCTIONS
 function redrawBackground()
@@ -150,8 +167,45 @@ function redrawBackground()
 	Olive.writeAt(2,ty,"<==")
 	Olive.writeAt(tx/2-3,ty,"Inicio")
 	Olive.writeAt(tx-4, ty, "===")
+	Olive.square(1,1,tx,1,colours.grey)
+	term.setTextColor(colours.yellow)
+	Olive.writeAt(1,1,"X: "..math.round(x)..",Z: "..math.round(z))
+end
+
+function redrawGps()
+	Olive.square(1,1,tx,1,colours.grey)
+	term.setTextColor(colours.yellow)
+	Olive.writeAt(1,1,"X: "..math.round(x)..",Z: "..math.round(z))
+end
+
+function chooseDestination()
+	redrawBackground
 end
 
 -- PROGRAM START
+local bRunning = true
+while bRunning do
+	x, _, z = gps.locate(1)
+	gpsTemp=os.startTimer(0.5)
+	redrawBackground(x,z)
+	local insLoop=true
+	while insLoop do
+		e,p1,p2,p3=os.pullEvent()
+		if e=="timer" then
+			x, _, z = gps.locate(1)
+			gpsTemp=os.startTimer(0.5)
+			redrawGps()
+		elseif e=="key" then
+			if p1==57 then
+				
+			end
+		end
+	end
+end
 
---redrawBackground()
+
+
+
+
+
+

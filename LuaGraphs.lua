@@ -1,6 +1,9 @@
 --Graph implementation in Lua for GraphGPS
 --Made by Mario Bizcocho González for Discrete Mathematics
---(C) Mar&Mar Hisperia 2017. All rights reserved.
+
+--[[This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
+	To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.]]--
+
 
 --[[
 Bibliography:
@@ -10,44 +13,10 @@ Bibliography:
 · http://www.redblobgames.com/pathfinding/a-star/introduction.html
 · https://www.lua.org/pil/contents.html
 · https://www.youtube.com/watch?v=ySN5Wnu88nE
+· http://web.mit.edu/eranki/www/tutorials/search/
 ]]--
 
--- AUXILIARY TABLE FUNCTION
-
-function print_r ( t )  
-	ans=""
-    local print_r_cache={}
-    local function sub_print_r(t,indent)
-        if (print_r_cache[tostring(t)]) then
-            ans=ans..(indent.."*"..tostring(t).."\n")
-        else
-            print_r_cache[tostring(t)]=true
-            if (type(t)=="table") then
-                for pos,val in pairs(t) do
-                    if (type(val)=="table") then
-                        ans=ans..(indent.."["..pos.."] => "..tostring(t).." {\n")
-                        sub_print_r(val,indent..string.rep(" ",string.len(pos)+8))
-                        ans=ans..(indent..string.rep(" ",string.len(pos)+6).."}\n")
-                    elseif (type(val)=="string") then
-                        ans=ans..(indent.."["..pos..'] => "'..val..'"'.."\n")
-                    else
-                        ans=ans..(indent.."["..pos.."] => "..tostring(val).."\n")
-                    end
-                end
-            else
-                ans=ans..(indent..tostring(t))
-            end
-        end
-    end
-    if (type(t)=="table") then
-        ans=ans..(tostring(t).." {\n")
-        sub_print_r(t,"  ")
-        ans=ans..("}\n")
-    else
-        sub_print_r(t,"  ")
-    end
-    ans=ans.."\n"
-end
+-- AUXILIARY FUNCTIONS
 
 function table.contains(table, element)
   for _, value in pairs(table) do
@@ -56,6 +25,15 @@ function table.contains(table, element)
     end
   end
   return false
+end
+
+function getPartialByVertex(vertex,h1,h2)
+	a1=h1:getByVertex(vertex)
+	a2=h2:getByVertex(vertex)
+	wf(tostring(a1))
+	wf(tostring(a2))
+	if a1~=nil then return a1 end
+	if a2~=nil then return a2 end
 end
 
 function table.find(table, element)
@@ -82,7 +60,6 @@ isDebug = true
 luaGraphVersion = "0.1"
 local vertexKeyIndexTable={}
 
-FinishedElements={}
 Graph={}
 Graph.__index = Graph
 Digraph={}
@@ -100,18 +77,19 @@ AStarPartial.__index = AStarPartial
 
 -- PRIORITYQUEUE FUNCTIONS
 
-function HeuristicQueue.new()
-	return setmetatable({},HeuristicQueue)
-end
 function HeuristicQueue.__tostring(self)
-	print_r(self)
+	ans="{\n"
+	for _,v in ipairs(self) do
+		ans=ans.."[ "..v[1].VertexNow.vertexKey..", "..v[1].costSoFar..", "..v[2].." ]\n"
+	end
+	return ans.." }"
 end
 function HeuristicQueue.store(self,elem,heuristic)
 	table.insert(self,{elem,heuristic})
 end
 function HeuristicQueue.pop(self,elem)
 	for i,v in ipairs(self) do
-		if v==elem then
+		if v[1]==elem then
 			table.remove(self,i)
 			return true
 		end
@@ -147,27 +125,34 @@ end
 function HeuristicQueue.getByVertex(self,elem)
 	for _,v in ipairs(self) do
 		if v[1].VertexNow==elem then
-			return v
+			return v[1]
 		end
 	end
 	return nil
 end
+function HeuristicQueue.new()
+	return setmetatable({},HeuristicQueue)
+end
 
 -- ASTARPARTIAL FUNCTIONS
 
-function AStarPartial.new(v1,v2,csf)
-	t={}
-	setmetatable(t,AStarPartial)
-	t.VertexNow=v1
-	t.VertexPrevious=v2
-	t.costSoFar=csf
-	return t
-end
 function AStarPartial.combHeuristic(self)
-	return self:dist()+self.costSoFar
+	return self.combinatoryHeuristic
+end
+function AStarPartial.__eq(p1,p2)
+	return p1.VertexNow==p2.VertexNow
 end
 function AStarPartial.dist(self)
 	return distance(self.VertexNow.vertexCoords[1],self.VertexNow.vertexCoords[2],self.VertexPrevious.vertexCoords[1],self.VertexPrevious.vertexCoords[2])
+end
+function AStarPartial.new(v1,v2,csf,combH)
+	t={}
+	t=setmetatable(t,AStarPartial)
+	t.VertexNow=v1
+	t.VertexPrevious=v2
+	t.costSoFar=csf
+	t.combinatoryHeuristic=combH
+	return t
 end
 
 -- GRAPH FUNCTIONS
@@ -256,6 +241,14 @@ function Graph.getAdjacentVertices(self,v)
 	end
 	return ans
 end
+function Graph.getEdgeConnecting(self,v1,v2)
+	local i = self:findVertex(v1)
+	for _,edge in ipairs(self[i]) do
+		if edge.Vertex1==v2 or edge.Vertex2==v2 then
+			return edge
+		end
+	end
+end
 function Graph.getDistanceToVertex(self,origin,v)
 	if (type(v)=="table" and getmetatable(v)==Vertex and type(origin)=="table" and getmetatable(origin)==Vertex) then
 		pos1=origin.vertexCoords
@@ -264,11 +257,14 @@ function Graph.getDistanceToVertex(self,origin,v)
 	end
 end
 function wf(d)
-	f=fs.open("log.log", "a")
-	f.write(d)
-	f.close()
+	if isDebug then
+		f=fs.open("log.log", "a")
+		f.write(d.."\n")
+		f.close()
+	end
 end
 function Graph.getPathAStar(self,origin,v)																									-- A* ALGORITHM IS HERE
+	wf("Empezamos nuevamente")
 	if type(origin)=="number" then
 		origin=self:findVertexId(origin)
 	end
@@ -276,32 +272,49 @@ function Graph.getPathAStar(self,origin,v)																									-- A* ALGORIT
 		v=self:findVertexId(v)
 	end
 	current=origin
-	currPartial=AStarPartial.new(origin,origin,0)
+	currPartial=AStarPartial.new(origin,origin,0,self:getDistanceToVertex(origin,v))
 	hq=HeuristicQueue.new()
+	FinishedElements=HeuristicQueue.new()
+	hq:store(currPartial,currPartial:combHeuristic())
 	while current~=v do
-		for _,elem in ipairs(self:getAdjacentVertices(current)) do
-			wf("Ciclo A: "..elem.vertexKey)
-		end
-		for _,elem in ipairs(self:getAdjacentVertices(current)) do
+		for i,elem in ipairs(self:getAdjacentVertices(current)) do
+			edge=self:getEdgeConnecting(current,elem)
+			wf("Expandiendo vertice: "..current.vertexKey..", vertice actual: "..elem.vertexKey)
+			wf("Contenido de hq: "..tostring(hq))
+			elemPartial=AStarPartial.new(elem,current,currPartial.costSoFar+edge.weight,self:getDistanceToVertex(elem,v)+edge.weight)
 			if hq:contains(elem) then
-				elemPartial=AStarPartial.new(elem,current,currPartial.costSoFar+self:getDistanceToVertex(current,origin))
 				thisPartial=hq:getByVertex(elem)
+				wf(tostring(thisPartial.costSoFar))
+				wf(tostring(elemPartial.costSoFar))
+				if thisPartial.costSoFar>elemPartial.costSoFar then
+					thisPartial=elemPartial
+				end
+			elseif FinishedElements:contains(elem) then
+				thisPartial=FinishedElements:getByVertex(elem)
 				if thisPartial.costSoFar>elemPartial.costSoFar then
 					thisPartial=elemPartial
 				end
 			else
-				elemPartial=AStarPartial.new(elem,current,currPartial.costSoFar+self:getDistanceToVertex(current,origin))
 				hq:store(elemPartial,elemPartial:combHeuristic())
 			end
 		end
-		table.insert(FinishedElements, currPartial)
+		FinishedElements:store(currPartial,currPartial:combHeuristic())
 		hq:pop(currPartial)
 		currPartial=hq:elemLeastHeuristic()
-		if currPartial==nil or getmetatable(currPartial)~=AStarPartial then error("Sa chingao acho") end
-		--print(currPartial.VertexNow.vertexKey)
 		current=currPartial.VertexNow
-		wf("Ciclo B: "..current.vertexKey)
+		wf("Ahora el vertice es: "..current.vertexKey)
+		wf("Contenido de hq: "..tostring(hq))
 	end
+	wf("Terminada primera fase; recopilando vertices")
+	ans={current}
+	while current~=origin do
+		wf("Vertice actual: "..current.vertexKey)
+		currPartial=getPartialByVertex(currPartial.VertexPrevious,hq,FinishedElements)
+		current=currPartial.VertexNow
+		table.insert(ans,1,current)
+	end
+	wf("Vertice actual: "..current.vertexKey)
+	wf("Algoritmo terminado con exito")
 end
 
 --VERTEX FUNCTIONS
@@ -343,6 +356,9 @@ end
 
 --DIREDGE FUNCTIONS
 
+function DirEdge.__tostring(self)
+	return self.Vertex1.vertexKey.." - "..self.Vertex2.vertexKey.." (".. self.weight ..")"
+end
 function DirEdge.joinVertices(v1,v2,weight)
 	if getmetatable(v1)==Vertex and getmetatable(v2)==Vertex then
 		t={}
