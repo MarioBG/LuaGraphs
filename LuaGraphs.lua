@@ -75,7 +75,7 @@ HeuristicQueue.__index = HeuristicQueue
 AStarPartial={}
 AStarPartial.__index = AStarPartial
 
--- PRIORITYQUEUE FUNCTIONS
+-- HEURISTICQUEUE FUNCTIONS
 
 function HeuristicQueue.__tostring(self)
 	ans="{\n"
@@ -315,6 +315,7 @@ function Graph.getPathAStar(self,origin,v)																									-- A* ALGORIT
 	end
 	wf("Vertice actual: "..current.vertexKey)
 	wf("Algoritmo terminado con exito")
+	return ans
 end
 
 --VERTEX FUNCTIONS

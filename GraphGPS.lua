@@ -15,24 +15,24 @@ function math.round(n)
 	end
 end
 local function split(str, max_line_length)
-   local lines = {}
+   local lineas = {}
    local line
    str:gsub('(%s*)(%S+)', 
       function(spc, word) 
          if not line or #line + #spc + #word > max_line_length then
-            table.insert(lines, line)
+            table.insert(lineas, line)
             line = word
          else
             line = line..spc..word
          end
       end
    )
-   table.insert(lines, line)
-   return lines
+   table.insert(lineas, line)
+   return lineas
 end
 function writeCenter(txt,line)
 	local tx,ty=term.getSize()
-	term.setCursorPos(tx/2-#txt/2,line)
+	term.setCursorPos(1+tx/2-#txt/2,line)
 	write(txt)
 end
 
@@ -79,13 +79,13 @@ mineville:addVertex(Vertex.new("Hanging Tree Sq-Calle Suarez-Calle Fraternidad",
 mineville:addVertex(Vertex.new("Avda. de la Democracia-Calle Fraternidad", {-436, 359},38))
 mineville:addVertex(Vertex.new("Calle Innovacion-Calle Sevilla", {-372, 346},39))
 mineville:addVertex(Vertex.new("Calle Innovacion-Calle Fraternidad", {-372, 359},40))
-mineville:addVertex(Vertex.new("Avda. del Pueblo-Torre Mar&Mar", {-368, 397},41))
+mineville:addVertex(Vertex.new("Avda. del Ciudadano-Torre Mar&Mar", {-368, 397},41))
 mineville:addVertex(Vertex.new("Avda. de la Democracia-TGPF", {-432, 434},42))
 mineville:addVertex(Vertex.new("Calle Castilla", {-483, 440},43))
-mineville:addVertex(Vertex.new("Avda. Constitucion-Avda. del Pueblo", {-372, 374},44))
-mineville:addVertex(Vertex.new("Avda. del Pueblo-CC. David Tennant", {-368, 434},45))
-mineville:addVertex(Vertex.new("Avda. del Pueblo-Calle del Elíseo", {-368, 447},46))
-mineville:addVertex(Vertex.new("Calle del Elíseo-Calle Valladolid", {-322, 447},47))
+mineville:addVertex(Vertex.new("Avda. Constitucion-Avda. del Ciudadano", {-372, 374},44))
+mineville:addVertex(Vertex.new("Avda. del Ciudadano-CC. David Tennant", {-368, 434},45))
+mineville:addVertex(Vertex.new("Avda. del Ciudadano-Calle del Eliseo", {-368, 447},46))
+mineville:addVertex(Vertex.new("Calle del Eliseo-Calle Valladolid", {-322, 447},47))
 mineville:addVertex(Vertex.new("Avda. de la Constitucion (reloj Mar&Mar)", {-331, 372},48))
 mineville:addVertex(Vertex.new("Avda. de la Constitucion (Naciones Unidas)", {-299, 372},49))
 mineville:addVertex(Vertex.new("Plaza del Triunfo", {-303, 448},50))
@@ -180,7 +180,28 @@ destinos={
 {"Home",53}
 }
 
+currentVertex=nil
+hasChanged=false
+ruta={}
+
 iDestinoActual=nil
+
+function findNextV(tabla,elem)
+	for i=1, #tabla do
+		if tabla[i][1]==elem and tabla[i+1]~=nil then
+			return tabla[i+1]
+		elseif tabla[i][1]==elem then
+			return true
+		end
+	end
+end
+function findNext(tabla,elem)
+	for i=1, #tabla do
+		if tabla[i]==elem and tabla[i+1]~=nil then
+			return tabla[i+1],i+1
+		end
+	end
+end
 
 -- DRAWING FUNCTIONS
 function redrawBackground()
@@ -222,6 +243,7 @@ function chooseDestination()
 						if iDestinoActual~=nil then Olive.writeAt(1,3+iDestinoActual*2-1," ") end
 						iDestinoActual=tonumber(p3)
 						if iDestinoActual~=nil then Olive.writeAt(1,3+iDestinoActual*2-1,">") end
+						ruta=mineville:getPathAStar(getCurrentVertex(),mineville:findVertexId(destinos[iDestinoActual][2]))
 					end
 				end
 			end
@@ -237,17 +259,40 @@ function getCurrentVertex()
 	local dist=1/0
 	local currentV=nil
 	for i=1,#mineville do
-		if mineville:getDistanceToVertex(mineville[i],Vertex.new("",{x,z}),1337) then
-			
+		if mineville:getDistanceToVertex(mineville[i][1],Vertex.new("",{x,z}),1337)<dist then
+			dist=mineville:getDistanceToVertex(mineville[i][1],Vertex.new("",{x,z}),1337)
+			currentV=mineville[i][1]
 		end
 	end
+	if currentVertex~=currentV then hasChanged=true end
+	return currentV
 end
 
 function drawTexts()
+	Olive.square(1,2,tx,ty-2,colors.white)
 	Olive.setColors(colors.white,colors.black)
 	Olive.writeAt(1,2,"GraphGPS v0.1")
-	Olive.writeCenter(4,"You\'re currently at:")
-	for _,line in ipairs(split(mineville[destinos[iDestinoActual][2]]))
+	writeCenter("You\'re currently at:",4)
+	nLineas=0
+	for i,line in ipairs(split(getCurrentVertex().vertexName,tx)) do
+		writeCenter(line, 4+i)
+		nLineas=nLineas+1
+	end
+	if iDestinoActual~=nil then
+		writeCenter("Destination:",6+nLineas)
+		for i,line in ipairs(split(mineville:findVertexId(destinos[iDestinoActual][2]).vertexName,tx)) do
+			nLineas=nLineas+1
+			writeCenter(line, 6+nLineas)
+		end
+		writeCenter("Continue onto:",8+nLineas)
+		for i,line in ipairs(split(ruta[2].vertexName,tx)) do
+			nLineas=nLineas+1
+			writeCenter(line, 8+nLineas)
+		end
+		writeCenter("(at {"..ruta[2].vertexCoords[1]..", "..ruta[2].vertexCoords[2].."})",9+nLineas)
+		
+	end
+	--print(getCurrentVertex().vertexName)
 end
 
 -- PROGRAM START
@@ -264,6 +309,19 @@ while bRunning do
 			x, _, z = gps.locate(1)
 			gpsTemp=os.startTimer(0.5)
 			redrawGps()
+			drawTexts()
+			if hasChanged then
+				currentVertex=getCurrentVertex()
+				if table.contains(ruta,currentVertex) and findNext(ruta,currentVertex)~=nil then
+					while(ruta[2]~=findNext(ruta,currentVertex)) do
+						table.remove(ruta,1)
+					end
+					if ruta[2]==nil then iDestinoActual=nil end
+				elseif ruta[2]==nil or ruta[1]==nil or not table.contains(ruta,currentVertex) or currentVertex==tabla[1] then
+					iDestinoActual=nil
+				end
+				hasChanged=false
+			end
 		elseif e=="key" then
 			if p1==57 then
 				chooseDestination()
