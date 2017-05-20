@@ -14,6 +14,27 @@ function math.round(n)
 		return math.floor(n)
 	end
 end
+local function split(str, max_line_length)
+   local lines = {}
+   local line
+   str:gsub('(%s*)(%S+)', 
+      function(spc, word) 
+         if not line or #line + #spc + #word > max_line_length then
+            table.insert(lines, line)
+            line = word
+         else
+            line = line..spc..word
+         end
+      end
+   )
+   table.insert(lines, line)
+   return lines
+end
+function writeCenter(txt,line)
+	local tx,ty=term.getSize()
+	term.setCursorPos(tx/2-#txt/2,line)
+	write(txt)
+end
 
 
 -- DECLARE MINEVILLE CITY GRAPH VERTEX
@@ -159,6 +180,8 @@ destinos={
 {"Home",53}
 }
 
+iDestinoActual=nil
+
 -- DRAWING FUNCTIONS
 function redrawBackground()
 	Olive.setColors(colors.white, colors.white)
@@ -167,9 +190,7 @@ function redrawBackground()
 	Olive.writeAt(2,ty,"<==")
 	Olive.writeAt(tx/2-3,ty,"Inicio")
 	Olive.writeAt(tx-4, ty, "===")
-	Olive.square(1,1,tx,1,colours.grey)
-	term.setTextColor(colours.yellow)
-	Olive.writeAt(1,1,"X: "..math.round(x)..",Z: "..math.round(z))
+	redrawGps()
 end
 
 function redrawGps()
@@ -179,7 +200,54 @@ function redrawGps()
 end
 
 function chooseDestination()
-	redrawBackground
+	redrawBackground()
+	Olive.setColors(colors.white,colors.black)
+	for i,v in ipairs(destinos) do
+		Olive.writeAt(2,3+i*2-1,destinos[i][1])
+	end
+	if iDestinoActual~=nil then Olive.writeAt(1,3+iDestinoActual*2-1,">") end
+	local insLoop=true
+	while insLoop do
+		e,p1,p2,p3=os.pullEvent()
+		if e=="timer" then
+			x, _, z = gps.locate(1)
+			gpsTemp=os.startTimer(0.5)
+			redrawGps()
+		elseif e=="mouse_click" then
+			if p3~=nil then
+				if(p3/2==math.floor(p3/2)) then
+					p3=math.floor(p3/2-1)
+					if p3>0 and p3<=#destinos then
+						Olive.setColors(colors.white,colors.black)
+						if iDestinoActual~=nil then Olive.writeAt(1,3+iDestinoActual*2-1," ") end
+						iDestinoActual=tonumber(p3)
+						if iDestinoActual~=nil then Olive.writeAt(1,3+iDestinoActual*2-1,">") end
+					end
+				end
+			end
+		elseif e=="key" then
+			if p1==57 then
+				insLoop=false
+			end
+		end
+	end
+end
+
+function getCurrentVertex()
+	local dist=1/0
+	local currentV=nil
+	for i=1,#mineville do
+		if mineville:getDistanceToVertex(mineville[i],Vertex.new("",{x,z}),1337) then
+			
+		end
+	end
+end
+
+function drawTexts()
+	Olive.setColors(colors.white,colors.black)
+	Olive.writeAt(1,2,"GraphGPS v0.1")
+	Olive.writeCenter(4,"You\'re currently at:")
+	for _,line in ipairs(split(mineville[destinos[iDestinoActual][2]]))
 end
 
 -- PROGRAM START
@@ -188,6 +256,7 @@ while bRunning do
 	x, _, z = gps.locate(1)
 	gpsTemp=os.startTimer(0.5)
 	redrawBackground(x,z)
+	drawTexts()
 	local insLoop=true
 	while insLoop do
 		e,p1,p2,p3=os.pullEvent()
@@ -197,7 +266,8 @@ while bRunning do
 			redrawGps()
 		elseif e=="key" then
 			if p1==57 then
-				
+				chooseDestination()
+				insLoop=false
 			end
 		end
 	end
