@@ -14,6 +14,41 @@ Bibliography:
 
 -- AUXILIARY TABLE FUNCTION
 
+function print_r ( t )  
+	ans=""
+    local print_r_cache={}
+    local function sub_print_r(t,indent)
+        if (print_r_cache[tostring(t)]) then
+            ans=ans..(indent.."*"..tostring(t).."\n")
+        else
+            print_r_cache[tostring(t)]=true
+            if (type(t)=="table") then
+                for pos,val in pairs(t) do
+                    if (type(val)=="table") then
+                        ans=ans..(indent.."["..pos.."] => "..tostring(t).." {\n")
+                        sub_print_r(val,indent..string.rep(" ",string.len(pos)+8))
+                        ans=ans..(indent..string.rep(" ",string.len(pos)+6).."}\n")
+                    elseif (type(val)=="string") then
+                        ans=ans..(indent.."["..pos..'] => "'..val..'"'.."\n")
+                    else
+                        ans=ans..(indent.."["..pos.."] => "..tostring(val).."\n")
+                    end
+                end
+            else
+                ans=ans..(indent..tostring(t))
+            end
+        end
+    end
+    if (type(t)=="table") then
+        ans=ans..(tostring(t).." {\n")
+        sub_print_r(t,"  ")
+        ans=ans..("}\n")
+    else
+        sub_print_r(t,"  ")
+    end
+    ans=ans.."\n"
+end
+
 function table.contains(table, element)
   for _, value in pairs(table) do
     if value == element then
@@ -42,6 +77,8 @@ end
 
 -- DECLARATION OF ALL TABLES AND __index SETTING
 
+isDebug = true
+
 luaGraphVersion = "0.1"
 local vertexKeyIndexTable={}
 
@@ -66,8 +103,20 @@ AStarPartial.__index = AStarPartial
 function HeuristicQueue.new()
 	return setmetatable({},HeuristicQueue)
 end
+function HeuristicQueue.__tostring(self)
+	print_r(self)
+end
 function HeuristicQueue.store(self,elem,heuristic)
 	table.insert(self,{elem,heuristic})
+end
+function HeuristicQueue.pop(self,elem)
+	for i,v in ipairs(self) do
+		if v==elem then
+			table.remove(self,i)
+			return true
+		end
+	end
+	return false
 end
 function HeuristicQueue.elemLeastHeuristic(self)
 	local lowestH, bestV = INF, nil
@@ -89,7 +138,7 @@ function HeuristicQueue.setPriority(self,elem,heuristic)
 end
 function HeuristicQueue.contains(self,elem)
 	for _,v in ipairs(self) do
-		if v[1]==elem then
+		if v[1].VertexNow==elem then
 			return true
 		end
 	end
@@ -214,6 +263,11 @@ function Graph.getDistanceToVertex(self,origin,v)
 		return distance(pos1[1],pos1[2],pos2[1],pos2[2])
 	end
 end
+function wf(d)
+	f=fs.open("log.log", "a")
+	f.write(d)
+	f.close()
+end
 function Graph.getPathAStar(self,origin,v)																									-- A* ALGORITHM IS HERE
 	if type(origin)=="number" then
 		origin=self:findVertexId(origin)
@@ -226,10 +280,13 @@ function Graph.getPathAStar(self,origin,v)																									-- A* ALGORIT
 	hq=HeuristicQueue.new()
 	while current~=v do
 		for _,elem in ipairs(self:getAdjacentVertices(current)) do
+			wf("Ciclo A: "..elem.vertexKey)
+		end
+		for _,elem in ipairs(self:getAdjacentVertices(current)) do
 			if hq:contains(elem) then
 				elemPartial=AStarPartial.new(elem,current,currPartial.costSoFar+self:getDistanceToVertex(current,origin))
 				thisPartial=hq:getByVertex(elem)
-				if thisPartial:combHeuristic()>elemPartial:combHeuristic() then
+				if thisPartial.costSoFar>elemPartial.costSoFar then
 					thisPartial=elemPartial
 				end
 			else
@@ -237,11 +294,13 @@ function Graph.getPathAStar(self,origin,v)																									-- A* ALGORIT
 				hq:store(elemPartial,elemPartial:combHeuristic())
 			end
 		end
+		table.insert(FinishedElements, currPartial)
+		hq:pop(currPartial)
 		currPartial=hq:elemLeastHeuristic()
 		if currPartial==nil or getmetatable(currPartial)~=AStarPartial then error("Sa chingao acho") end
-		print(currPartial.VertexNow.vertexKey)
+		--print(currPartial.VertexNow.vertexKey)
 		current=currPartial.VertexNow
-		sleep(0.3)
+		wf("Ciclo B: "..current.vertexKey)
 	end
 end
 
